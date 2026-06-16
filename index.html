@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bass Pattern Lab</title>
+    <meta name="theme-color" content="#0f4d5a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bass Lab" />
+    <meta
+      name="description"
+      content="天候、季節、水温、バスの習性からブラックバスの居場所と反応しやすいルアーを予測するアプリ"
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Bass Pattern Lab</p>
+          <h1>ブラックバス予測ダッシュボード</h1>
+        </div>
+        <div class="data-badge" id="dataStatus">外部データ待機中</div>
+      </header>
+
+      <main>
+        <section class="workspace">
+          <form class="control-panel" id="conditionForm">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Location</p>
+                <h2>フィールドと条件</h2>
+              </div>
+              <button class="ghost-button" type="button" id="refreshButton" title="現在の条件で再計算">
+                更新
+              </button>
+            </div>
+
+            <label class="field-block">
+              <span>釣り場・市町村</span>
+              <div class="search-row">
+                <input id="locationInput" type="search" value="琵琶湖" autocomplete="off" />
+                <button type="button" id="searchButton">検索</button>
+              </div>
+            </label>
+
+            <div class="quick-actions">
+              <button type="button" id="geoButton" class="secondary-button">現在地を使う</button>
+              <span id="selectedLocation" class="muted">未選択</span>
+            </div>
+
+            <div class="result-list" id="locationResults" aria-live="polite"></div>
+
+            <section class="map-panel" aria-label="フィールドマップ">
+              <div class="map-heading">
+                <div>
+                  <p class="eyebrow">Map</p>
+                  <h2>フィールドマップ</h2>
+                </div>
+                <span id="mapStatus" class="pill compact-pill">OSM</span>
+              </div>
+              <div id="fieldMap" class="field-map" aria-label="釣り場選択マップ"></div>
+              <div class="map-meta">
+                <span id="mapCoords" class="muted">--</span>
+                <button type="button" id="useMapPointButton" class="secondary-button">この地点</button>
+              </div>
+              <div class="field-info" id="fieldInfo"></div>
+              <div class="field-list" id="nearbyFields" aria-live="polite"></div>
+            </section>
+
+            <div class="grid-2">
+              <label class="field-block">
+                <span>フィールド種別</span>
+                <select id="waterType">
+                  <option value="natural">自然湖</option>
+                  <option value="reservoir">リザーバー</option>
+                  <option value="river">河川</option>
+                  <option value="pond">野池・小規模池</option>
+                </select>
+              </label>
+
+              <label class="field-block">
+                <span>水位傾向</span>
+                <select id="waterLevel">
+                  <option value="stable">安定</option>
+                  <option value="rising">増水</option>
+                  <option value="falling">減水</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field-block">
+              <span>季節モード</span>
+              <select id="seasonMode">
+                <option value="auto">自動判定</option>
+                <option value="spring">春</option>
+                <option value="summer">夏</option>
+                <option value="fall">秋</option>
+                <option value="winter">冬</option>
+              </select>
+            </label>
+
+            <label class="field-block">
+              <span>水温</span>
+              <div class="unit-row">
+                <input id="waterTemp" type="number" inputmode="decimal" min="0" max="40" step="0.5" placeholder="未入力なら推定" />
+                <span>℃</span>
+              </div>
+            </label>
+
+            <label class="range-block">
+              <span>水色</span>
+              <input id="clarity" type="range" min="0" max="100" value="58" />
+              <small><span>濁り</span><span>クリア</span></small>
+            </label>
+
+            <label class="range-block">
+              <span>人的プレッシャー</span>
+              <input id="pressure" type="range" min="0" max="100" value="45" />
+              <small><span>低い</span><span>高い</span></small>
+            </label>
+
+            <label class="field-block">
+              <span>狙う時間帯</span>
+              <select id="timeFocus">
+                <option value="now">現在</option>
+                <option value="morning">朝まずめ</option>
+                <option value="day">日中</option>
+                <option value="evening">夕まずめ</option>
+                <option value="night">夜</option>
+              </select>
+            </label>
+          </form>
+
+          <section class="insight-panel">
+            <div class="hero-forecast">
+              <div>
+                <p class="eyebrow">Prediction</p>
+                <h2 id="patternTitle">地点を選ぶと予測を開始します</h2>
+                <p id="patternSummary" class="summary-text">
+                  天気データとフィールド条件を合わせて、今のバスのポジションとルアー選択を推定します。
+                </p>
+              </div>
+              <div class="score-ring" aria-label="活性スコア">
+                <span id="activityScore">--</span>
+                <small>activity</small>
+              </div>
+            </div>
+
+            <div class="metrics-grid" id="metricsGrid">
+              <article>
+                <span>天気</span>
+                <strong>--</strong>
+              </article>
+              <article>
+                <span>気圧傾向</span>
+                <strong>--</strong>
+              </article>
+              <article>
+                <span>推定水温</span>
+                <strong>--</strong>
+              </article>
+              <article>
+                <span>風</span>
+                <strong>--</strong>
+              </article>
+            </div>
+
+            <div class="lake-section">
+              <div class="lake-heading">
+                <div>
+                  <p class="eyebrow">Position</p>
+                  <h2>居場所の仮説</h2>
+                </div>
+                <span id="depthRange" class="pill">--</span>
+              </div>
+              <div class="lake-visual" id="lakeVisual" aria-label="バスの想定レンジ">
+                <div class="water-surface"></div>
+                <div class="shoreline"></div>
+                <div class="depth-band shallow">Shallow</div>
+                <div class="depth-band mid">Mid</div>
+                <div class="depth-band deep">Deep</div>
+                <div class="bass-marker" id="bassMarker">
+                  <span></span>
+                </div>
+              </div>
+              <div class="location-list" id="locationHypotheses"></div>
+            </div>
+
+            <div class="recommendation-section">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Lures</p>
+                  <h2>反応を取りやすいルアー</h2>
+                </div>
+                <span id="retrieveSpeed" class="pill">--</span>
+              </div>
+              <div class="lure-grid" id="lureGrid"></div>
+            </div>
+
+            <div class="forecast-strip" id="forecastStrip"></div>
+          </section>
+        </section>
+      </main>
+
+      <footer>
+        <span>Weather: Open-Meteo / Map and field data: OpenStreetMap</span>
+        <span>予測は経験則ベースの参考値です。現地の安全とルールを優先してください。</span>
+      </footer>
+    </div>
+  </body>
+</html>
